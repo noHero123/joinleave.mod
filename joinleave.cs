@@ -212,7 +212,7 @@ namespace joinleave.mod
                         };
                         if (donesomething == false)
                         {
-                            string text = "/jl commands are: on/allon, off/alloff, tggl/toggle " + msg.roomName;
+                            string text = "/jl commands are: on/allon, off/alloff, tggl/toggle ";
                             RoomChatMessageMessage joinmessage = new RoomChatMessageMessage(msg.roomName, "<color=#777460>" + text + "</color>");
                             App.ChatUI.handleMessage(joinmessage);
                             App.ArenaChat.ChatRooms.ChatMessage(joinmessage);
