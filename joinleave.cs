@@ -23,7 +23,7 @@ namespace joinleave.mod
         Dictionary<string, string[]> rooms=new Dictionary<string, string[]>();
         Dictionary<string, Boolean> roomstoggle = new Dictionary<string, Boolean>();
         Dictionary<string, string[]> newplayers = new Dictionary<string, string[]>();
-
+        List<string> nomssg = new List<string>();
 
 		//initialize everything here, Game is loaded at this point
         public joinleave()
@@ -51,74 +51,60 @@ namespace joinleave.mod
         
         public void handleMessage(Message msg)
         {
+            if (msg is RoomEnterMessage)
+            {
+                RoomEnterMessage rms = (RoomEnterMessage)msg;
+                this.nomssg.Add(rms.roomName);
+
+            }
 
             if (msg is RoomInfoMessage)
             {
-
+                Console.WriteLine("joinleave bearbeitet: " + msg.getRawText());
+                //"removed";
+                //"updated";
                 JsonReader jsonReader = new JsonReader();
                 Dictionary<string, object> dictionary = (Dictionary<string, object>)jsonReader.Read(msg.getRawText());
-                Dictionary<string, object>[] d = (Dictionary<string, object>[])dictionary["profiles"];
-                string roomname=(string)dictionary["roomName"];
-                int vorhanden = 0;
-                string[] oldnames=new string[100]; 
+                string roomname = (string)dictionary["roomName"];
+
                 
-                if (rooms.ContainsKey(roomname)) 
-                {
-                    oldnames = (string[])rooms[roomname].Clone(); ;
-                    vorhanden = 1;
-                } 
-                else 
-                { 
-                    rooms.Add(roomname, new string[100]);
-                    roomstoggle.Add(roomname, new Boolean());
-                    roomstoggle[roomname] = true;
-                }
-                for (int i = 0; i < d.GetLength(0); i++)
-                {
-                    rooms[roomname][i] = d[i]["name"].ToString() ;
-                }
 
-                string[] leaves;
-                string[] joins;
-                if (vorhanden == 1)
+                if (msg.getRawText().Contains("removed"))
                 {
-                    
-                   leaves= rooms[roomname].Except(oldnames).ToArray(); 
-                   joins= oldnames.Except(rooms[roomname]).ToArray();
-                   string text = string.Join(", ", leaves);
-                   if (leaves.Length > 0)
-                   {
-                       text = text + " has left the room";
-                   }
-                   string ltext = text;
-                   RoomChatMessageMessage leftmessage = new RoomChatMessageMessage(roomname, "<color=#777460>" + ltext + "</color>");
+                    Dictionary<string, object>[] d = (Dictionary<string, object>[])dictionary["removed"];
 
-                   text = string.Join(", ", joins);
-                    if (joins.Length > 0)
+                    for (int i = 0; i < d.Length; i++)
                     {
-                        text = text + " has joined the room";
+                        string ltext = d[i]["name"] + " has left the room";
+                        
+                        RoomChatMessageMessage leftmessage = new RoomChatMessageMessage(roomname, "<color=#777460>" + ltext + "</color>");
+                        App.ChatUI.handleMessage(leftmessage);
+                        App.ArenaChat.ChatRooms.ChatMessage(leftmessage);
                     }
-                    RoomChatMessageMessage joinmessage = new RoomChatMessageMessage(roomname, "<color=#777460>" + text + "</color>");
-                    Console.WriteLine(text);
-                    if (roomstoggle[roomname])
+
+                }
+
+                if (msg.getRawText().Contains("updated") && this.nomssg.Contains(roomname))
+                {
+                    nomssg.RemoveAll(item => item == roomname);
+                }
+                else
+                {
+                    if (msg.getRawText().Contains("updated"))
                     {
-                        if (!text.Equals(""))
+                        Dictionary<string, object>[] d = (Dictionary<string, object>[])dictionary["updated"];
+
+                        for (int i = 0; i < d.Length; i++)
                         {
-                            App.ChatUI.handleMessage(joinmessage);
-                            App.ArenaChat.ChatRooms.ChatMessage(joinmessage);
-                           
-                        }
-                        if (!ltext.Equals(""))
-                        {
+                            string ltext = d[i]["name"] + " has joined the room";
+                            RoomChatMessageMessage leftmessage = new RoomChatMessageMessage(roomname, "<color=#777460>" + ltext + "</color>");
                             App.ChatUI.handleMessage(leftmessage);
                             App.ArenaChat.ChatRooms.ChatMessage(leftmessage);
                         }
+
                     }
+
                 }
-                
-
-
-
             }
             
             return;
@@ -149,7 +135,26 @@ namespace joinleave.mod
             }
 		}
 
-        public override bool BeforeInvoke(InvocationInfo info, out object returnValue) {
+        public override bool WantsToReplace(InvocationInfo info)
+        {
+             if (info.targetMethod.Equals("sendRequest"))
+            {
+
+                if (info.arguments[0] is RoomChatMessageMessage)
+                {
+                    RoomChatMessageMessage msg = (RoomChatMessageMessage)info.arguments[0];
+
+                    string[] splitt = msg.text.Split(' ');
+                    if (splitt[0] == "/jl" || splitt[0] == "\\jl")
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+        public override void ReplaceMethod(InvocationInfo info, out object returnValue)
+        {
             
             returnValue = null;
 
@@ -220,40 +225,29 @@ namespace joinleave.mod
                         }
                     }
                     
-                    return iscommand;
+                    return;
                 }
             }
 
 
-            return false;
+            return;
         
+        }
+
+        public override void BeforeInvoke(InvocationInfo info)
+        {
+
+            return;
+
         }
 
         public override void AfterInvoke (InvocationInfo info, ref object returnValue)
         //public override bool BeforeInvoke(InvocationInfo info, out object returnValue)
         {
 
-            /*if (info.target is ChatUI && info.targetMethod.Equals("Awake")) 
-            {
-                Console.WriteLine("dingst startet ####################################");
-                this.chatRooms = (ChatRooms)typeof(ChatUI).GetField("chatRooms", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(info.target);
-            }*/
             return;
         }
-
-		/*public override void AfterInvoke (InvocationInfo info, ref object returnValue)
-		{
-
-           
-
-
-
-			return;
-		}*/
-
-
-
-        
+ 
 	}
 }
 
